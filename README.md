@@ -47,8 +47,8 @@ They're saved to `~/.config/custommaccolors/config.toml`, and reach every app at
 `custommaccolors reload` after editing the file by hand. The first time, with no file yet, the colors
 in `~/.config/erismenus/config.toml` are used if it's there.
 
-To leave one app alone, leave it out with the daemon's rules: never the login window, the password
-prompt or the Dock (`SKIPPED` in `crates/custommaccolors/src/main.rs`).
+The daemon never loads into the login window, the password prompt or the Dock (`SKIPPED` in
+`crates/custommaccolors/src/main.rs`).
 
 ## Reading the color from another program
 
