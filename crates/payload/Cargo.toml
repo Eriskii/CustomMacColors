@@ -1,0 +1,17 @@
+[package]
+name = "payload"
+description = "The dylib that gives apps the custom accent color"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "custommaccolors"
+crate-type = ["cdylib"]
+test = false
+
+[dependencies]
+colors-core = { path = "../core" }
+eris-inject-payload = { git = "https://github.com/Eriskii/ErisMacInjectLib", tag = "v0.1.2" }
