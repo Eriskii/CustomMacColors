@@ -41,13 +41,22 @@ fn from_erismenus(path: &Path) -> Option<Settings> {
     parse_keeping(&text, |key| matches!(key, "accent" | "icon_tint")).ok()
 }
 
-/// Writes `settings` to `path`, sends them to every app, and gives macOS's own icon tint the
-/// color (see `icons`).
-pub fn save(path: &Path, settings: &Settings) -> Result<(), String> {
+fn write(path: &Path, settings: &Settings) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("can't make {}: {e}", dir.display()))?;
     }
-    std::fs::write(path, render(settings)).map_err(|e| format!("can't write {}: {e}", path.display()))?;
+    std::fs::write(path, render(settings)).map_err(|e| format!("can't write {}: {e}", path.display()))
+}
+
+/// Writes the file if there's none, so colors taken from ErisMenus' file don't depend on it any more.
+pub fn ensure(path: &Path, settings: &Settings) -> Result<(), String> {
+    if path.exists() { Ok(()) } else { write(path, settings) }
+}
+
+/// Writes `settings` to `path`, sends them to every app, and gives macOS's own icon tint the
+/// color (see `icons`).
+pub fn save(path: &Path, settings: &Settings) -> Result<(), String> {
+    write(path, settings)?;
     publish(settings)?;
     crate::icons::apply(settings.effective_icon_tint())
 }
@@ -180,10 +189,14 @@ mod tests {
         .unwrap();
         let path = path_in(&home);
         assert_eq!(load(&path), Ok(Settings { accent: Some(0xB473F7), icon_tint: Some(0xDDB3FF) }));
-        // Its own file, once there is one, is what counts.
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, render(&Settings::default())).unwrap();
-        assert_eq!(load(&path), Ok(Settings::default()));
+        // Made from them, it doesn't need the old file any more.
+        let settings = load(&path).unwrap();
+        ensure(&path, &settings).unwrap();
+        std::fs::remove_dir_all(home.join(".config/erismenus")).unwrap();
+        assert_eq!(load(&path), Ok(settings));
+        // And it's what counts from then on: ensure leaves it alone.
+        ensure(&path, &Settings::default()).unwrap();
+        assert_eq!(load(&path), Ok(settings));
         std::fs::remove_dir_all(&home).unwrap();
     }
 }

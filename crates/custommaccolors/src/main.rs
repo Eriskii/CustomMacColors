@@ -133,6 +133,8 @@ fn run(command: Command) -> Result<(), String> {
         Command::Install => {
             SERVICE.install()?;
             install_app()?;
+            // As the user, whose file it is: makes it, and sends it to the apps.
+            as_console_user(&[&SERVICE.file("custommaccolors").to_string_lossy(), "reload"]);
             println!("installed; the daemon is loading into your apps as they start");
             println!("settings: CustomMacColors in Applications, or `custommaccolors set`");
             println!("apps already running get the color once they're relaunched, or with `sudo custommaccolors inject <pid>`");
@@ -171,7 +173,9 @@ fn run(command: Command) -> Result<(), String> {
             Ok(())
         }
         Command::Reload => {
-            let settings = config::load(&config::path()?)?;
+            let path = config::path()?;
+            let settings = config::load(&path)?;
+            config::ensure(&path, &settings)?;
             config::publish(&settings)?;
             print_settings(&settings);
             Ok(())
@@ -218,6 +222,16 @@ fn run(command: Command) -> Result<(), String> {
 fn print_settings(s: &colors_core::settings::Settings) {
     println!("accent:         {}", s.accent.map_or_else(|| "system (System Settings' own)".to_string(), config::hex));
     println!("icon tint:      {}", s.icon_tint.map_or_else(|| "the accent".to_string(), config::hex));
+}
+
+/// Runs a command as whoever is at the screen, in their session, from root.
+fn as_console_user(command: &[&str]) {
+    let Some((uid, _)) = procs::console_user() else { return };
+    let uid = uid.to_string();
+    let user = format!("#{uid}");
+    let mut args = vec!["asuser", uid.as_str(), "/usr/bin/sudo", "-H", "-u", user.as_str()];
+    args.extend_from_slice(command);
+    let _ = std::process::Command::new("/bin/launchctl").args(args).output();
 }
 
 /// Puts the settings app built next to this binary in /Applications.
